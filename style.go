@@ -5,25 +5,23 @@ import "strconv"
 // Style is a high level structure intended to provide user access to
 // the contents of Style within an XLSX file.
 type Style struct {
-	Border      Border
-	Fill        Fill
-	Font        Font
-	ApplyBorder bool
-	ApplyFill   bool
-	ApplyFont   bool
+	Border         Border
+	Fill           Fill
+	Font           Font
+	Alignment      Alignment
+	ApplyBorder    bool
+	ApplyFill      bool
+	ApplyFont      bool
+	ApplyAlignment bool
 }
 
 // Return a new Style structure initialised with the default values.
 func NewStyle() *Style {
-	return &Style{
-		Font:   *DefaulFont(),
-		Border: *DefaulBorder(),
-		Fill:   *DefaulFill(),
-	}
+	return &Style{Font: *DefaulFont()}
 }
 
 // Generate the underlying XLSX style elements that correspond to the Style.
-func (style *Style) makeXLSXStyleElements() (xFont xlsxFont, xFill xlsxFill, xBorder xlsxBorder, xCellStyleXf xlsxXf, xCellXf xlsxXf) {
+func (style *Style) makeXLSXStyleElements() (xNumFmt xlsxNumFmt, xFont xlsxFont, xFill xlsxFill, xBorder xlsxBorder, xCellStyleXf xlsxXf, xCellXf xlsxXf) {
 	xFont = xlsxFont{}
 	xFill = xlsxFill{}
 	xBorder = xlsxBorder{}
@@ -46,12 +44,23 @@ func (style *Style) makeXLSXStyleElements() (xFont xlsxFont, xFill xlsxFill, xBo
 	xCellXf.ApplyBorder = style.ApplyBorder
 	xCellXf.ApplyFill = style.ApplyFill
 	xCellXf.ApplyFont = style.ApplyFont
+	xCellXf.ApplyAlignment = style.ApplyAlignment
+	xCellXf.Alignment = xlsxAlignment{
+		Horizontal:   style.Alignment.Horizontal}
 	xCellXf.NumFmtId = 0
 	xCellStyleXf.ApplyBorder = style.ApplyBorder
 	xCellStyleXf.ApplyFill = style.ApplyFill
 	xCellStyleXf.ApplyFont = style.ApplyFont
 	xCellStyleXf.NumFmtId = 0
 	return
+}
+
+type Alignment struct {
+	Horizontal string
+}
+
+func NewAlignment(horizontal string) *Alignment {
+	return &Alignment{Horizontal: horizontal}
 }
 
 // Border is a high level structure intended to provide user access to
@@ -92,14 +101,5 @@ func NewFont(size int, name string) *Font {
 }
 
 func DefaulFont() *Font {
-	return NewFont(12, "Verdana")
-}
-
-func DefaulFill() *Fill {
-	return NewFill("none", "FFFFFFFF", "00000000")
-
-}
-
-func DefaulBorder() *Border {
-	return NewBorder("none", "none", "none", "none")
+	return NewFont(12, "Calibri")
 }

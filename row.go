@@ -6,9 +6,9 @@ type Row struct {
 	Sheet  *Sheet
 }
 
-func (r *Row) AddCell() *Cell {
+func (r *Row) AddCell(width float64) *Cell {
 	cell := NewCell(r)
 	r.Cells = append(r.Cells, cell)
-	r.Sheet.maybeAddCol(len(r.Cells))
+	r.Sheet.maybeAddCol(len(r.Cells), width)
 	return cell
 }

@@ -1,7 +1,7 @@
 package xlsx
 
 // Default column width in excel
-const ColWidth = 9.5
+const ColWidth = 20
 
 type Col struct {
 	Min       int

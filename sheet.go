@@ -8,13 +8,13 @@ import (
 // Sheet is a high level structure intended to provide user access to
 // the contents of a particular sheet within an XLSX file.
 type Sheet struct {
-	Name   string
-	File   *File
-	Rows   []*Row
-	Cols   []*Col
-	MaxRow int
-	MaxCol int
-	Hidden bool
+	Name     string
+	File     *File
+	Rows     []*Row
+	Cols     []*Col
+	MaxRow   int
+	MaxCol   int
+	Hidden   bool
 }
 
 // Add a new Row to a Sheet
@@ -28,7 +28,8 @@ func (s *Sheet) AddRow() *Row {
 }
 
 // Make sure we always have as many Cols as we do cells.
-func (s *Sheet) maybeAddCol(cellCount int) {
+func (s *Sheet) maybeAddCol(cellCount int, colWidth float64) {
+	if colWidth <= 0 { colWidth = ColWidth }
 	if cellCount > s.MaxCol {
 		col := &Col{
 			Min:       cellCount,
@@ -36,7 +37,7 @@ func (s *Sheet) maybeAddCol(cellCount int) {
 			Hidden:    false,
 			Collapsed: false,
 			// Style:     0,
-			Width: ColWidth}
+			Width: colWidth}
 		s.Cols = append(s.Cols, col)
 		s.MaxCol = cellCount
 	}
@@ -59,32 +60,12 @@ func (sh *Sheet) Cell(row, col int) *Cell {
 	return new(Cell)
 }
 
-//Set the width of a single column or multipel columns.
-func (s *Sheet) SetColWidth(startcol, endcol int, width float64) error {
-	if startcol > endcol {
-		return fmt.Errorf("Could not set width for range %g-%g: startcol must be less than endcol.", startcol, endcol)
-	}
-	col := &Col{
-		Min:       startcol + 1,
-		Max:       endcol + 1,
-		Hidden:    false,
-		Collapsed: false,
-		// Style:     0,
-		Width: width}
-	s.Cols = append(s.Cols, col)
-	if endcol+1 > s.MaxCol {
-		s.MaxCol = endcol + 1
-	}
-	return nil
-}
-
 // Dump sheet to it's XML representation, intended for internal use only
 func (s *Sheet) makeXLSXSheet(refTable *RefTable, styles *xlsxStyleSheet) *xlsxWorksheet {
 	worksheet := newXlsxWorksheet()
 	xSheet := xlsxSheetData{}
 	maxRow := 0
 	maxCell := 0
-	XfId := 0
 	for r, row := range s.Rows {
 		if r > maxRow {
 			maxRow = r
@@ -93,22 +74,21 @@ func (s *Sheet) makeXLSXSheet(refTable *RefTable, styles *xlsxStyleSheet) *xlsxW
 		xRow.R = r + 1
 		for c, cell := range row.Cells {
 			style := cell.GetStyle()
-			if style != nil {
-				xFont, xFill, xBorder, xCellStyleXf, xCellXf := style.makeXLSXStyleElements()
-				fontId := styles.addFont(xFont)
-				fillId := styles.addFill(xFill)
-				borderId := styles.addBorder(xBorder)
-				xCellStyleXf.FontId = fontId
-				xCellStyleXf.FillId = fillId
-				xCellStyleXf.BorderId = borderId
-				xCellStyleXf.NumFmtId = 0 // General
-				xCellXf.FontId = fontId
-				xCellXf.FillId = fillId
-				xCellXf.BorderId = borderId
-				xCellXf.NumFmtId = 0 // General
-				styles.addCellStyleXf(xCellStyleXf)
-				XfId = styles.addCellXf(xCellXf)
-			}
+			xNumFmt, xFont, xFill, xBorder, xCellStyleXf, xCellXf := style.makeXLSXStyleElements()
+			fontId := styles.addFont(xFont)
+			fillId := styles.addFill(xFill)
+			borderId := styles.addBorder(xBorder)
+			styles.addNumFmt(xNumFmt)
+			xCellStyleXf.FontId = fontId
+			xCellStyleXf.FillId = fillId
+			xCellStyleXf.BorderId = borderId
+			xCellStyleXf.NumFmtId = xNumFmt.NumFmtId
+			xCellXf.FontId = fontId
+			xCellXf.FillId = fillId
+			xCellXf.BorderId = borderId
+			xCellXf.NumFmtId = xNumFmt.NumFmtId
+			styles.addCellStyleXf(xCellStyleXf)
+			XfId := styles.addCellXf(xCellXf)
 			if c > maxCell {
 				maxCell = c
 			}
