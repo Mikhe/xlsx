@@ -28,28 +28,28 @@ func (r *Row) WriteSlice(e interface{}, cols int) int {
 	switch t.Elem().Kind() { // underlying type of slice
 	case reflect.String:
 		for i = 0; i < n; i++ {
-			cell := r.AddCell()
+			cell := r.AddCell(ColWidth)
 			cell.SetString(v.Index(i).Interface().(string))
 		}
 	case reflect.Int, reflect.Int8,
 		reflect.Int16, reflect.Int32:
 		for i = 0; i < n; i++ {
-			cell := r.AddCell()
+			cell := r.AddCell(ColWidth)
 			cell.SetInt(v.Index(i).Interface().(int))
 		}
 	case reflect.Int64:
 		for i = 0; i < n; i++ {
-			cell := r.AddCell()
+			cell := r.AddCell(ColWidth)
 			cell.SetInt64(v.Index(i).Interface().(int64))
 		}
 	case reflect.Bool:
 		for i = 0; i < n; i++ {
-			cell := r.AddCell()
+			cell := r.AddCell(ColWidth)
 			cell.SetBool(v.Index(i).Interface().(bool))
 		}
 	case reflect.Float64, reflect.Float32:
 		for i = 0; i < n; i++ {
-			cell := r.AddCell()
+			cell := r.AddCell(ColWidth)
 			cell.SetFloat(v.Index(i).Interface().(float64))
 		}
 	}
@@ -79,7 +79,7 @@ func (r *Row) WriteStruct(e interface{}, cols int) int {
 	var k int
 	for i := 0; i < n; i, k = i+1, k+1 {
 		f := v.Field(i).Kind()
-		cell := r.AddCell()
+		cell := r.AddCell(ColWidth)
 
 		switch f {
 		case reflect.Int, reflect.Int8,
