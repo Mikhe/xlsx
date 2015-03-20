@@ -102,6 +102,8 @@ type xlsxPageMargins struct {
 // as I need.
 type xlsxSheetFormatPr struct {
 	DefaultRowHeight float64 `xml:"defaultRowHeight,attr"`
+	baseColWidth float64 `xml:"baseColWidth,attr"`
+	defaultColWidth float64 `xml:"defaultColWidth,attr"`
 }
 
 // xlsxSheetViews directly maps the sheetViews element in the namespace
@@ -177,12 +179,10 @@ type xlsxCols struct {
 // currently I have not checked it for completeness - it does as much
 // as I need.
 type xlsxCol struct {
-	Collapsed bool `xml:"collapsed,attr"`
-	Hidden    bool `xml:"hidden,attr"`
-	Max       int  `xml:"max,attr"`
-	Min       int  `xml:"min,attr"`
-	// Style     int     `xml:"style,attr"`
-	Width float64 `xml:"width,attr"`
+	Max      	int     `xml:"max,attr"`
+	Min         int     `xml:"min,attr"`
+	Width 		float64 `xml:"width,attr"`
+	Cw 			int     `xml:"customWidth,attr"`
 }
 
 // xlsxDimension directly maps the dimension element in the namespace
@@ -257,6 +257,8 @@ func newXlsxWorksheet() (worksheet *xlsxWorksheet) {
 		ActiveCellId: 0,
 		SQRef:        "A1"}
 	worksheet.SheetFormatPr.DefaultRowHeight = 12.85
+	worksheet.SheetFormatPr.baseColWidth = 40
+	worksheet.SheetFormatPr.defaultColWidth = 60
 	worksheet.PrintOptions.Headings = false
 	worksheet.PrintOptions.GridLines = false
 	worksheet.PrintOptions.GridLinesSet = true

@@ -97,6 +97,21 @@ func (c *Cell) SetInt(n int) {
 	c.formula = ""
 	c.cellType = CellTypeNumeric
 }
+func (c *Cell) SetInt64(n int64) {
+	c.Value = fmt.Sprintf("%d", n)
+	c.numFmt = "0"
+	c.formula = ""
+	c.cellType = CellTypeNumeric
+}
+
+// Returns the value of cell as 64-bit integer
+func (c *Cell) Int64() (int64, error) {
+	f, err := strconv.ParseInt(c.Value, 10, 64)
+	if err != nil {
+		return -1, err
+	}
+	return f, nil
+}
 
 // Returns the value of cell as integer
 func (c *Cell) Int() (int, error) {

@@ -15,10 +15,6 @@ import (
 	"sync"
 )
 
-var (
-	NumFmtRefTable map[int]xlsxNumFmt
-)
-
 // xlsxStyle directly maps the styleSheet element in the namespace
 // http://schemas.openxmlformats.org/spreadsheetml/2006/main -
 // currently I have not checked it for completeness - it does as much
@@ -34,6 +30,7 @@ type xlsxStyleSheet struct {
 	NumFmts      xlsxNumFmts      `xml:"numFmts,omitempty"`
 
 	styleCache map[int]*Style // `-`
+	numFmtRefTable map[int]xlsxNumFmt `xml:"-"`
 	lock       *sync.RWMutex
 }
 
@@ -42,14 +39,6 @@ func newXlsxStyleSheet() *xlsxStyleSheet {
 	stylesheet.styleCache = make(map[int]*Style)
 	stylesheet.lock = new(sync.RWMutex)
 	return stylesheet
-}
-
-func (styles *xlsxStyleSheet) buildNumFmtRefTable() (numFmtRefTable map[int]xlsxNumFmt) {
-	numFmtRefTable = make(map[int]xlsxNumFmt)
-	for _, numFmt := range styles.NumFmts.NumFmt {
-		numFmtRefTable[numFmt.NumFmtId] = numFmt
-	}
-	return numFmtRefTable
 }
 
 func (styles *xlsxStyleSheet) reset() {
@@ -121,15 +110,88 @@ func (styles *xlsxStyleSheet) getStyle(styleIndex int) (style *Style) {
 
 }
 
+// Excel styles can reference number formats that are built-in, all of which
+// have an id less than 164. This is a possibly incomplete list comprised of as
+// many of them as I could find.
+func getBuiltinNumberFormat(numFmtId int) string {
+	switch numFmtId {
+	case 1:
+		return "0"
+	case 2:
+		return "0.00"
+	case 3:
+		return "#,##0"
+	case 4:
+		return "#,##0.00"
+	case 9:
+		return "0%"
+	case 10:
+		return "0.00%"
+	case 11:
+		return "0.00E+00"
+	case 12:
+		return "# ?/?"
+	case 13:
+		return "# ??/??"
+	case 14:
+		return "mm-dd-yy"
+	case 15:
+		return "d-mmm-yy"
+	case 16:
+		return "d-mmm"
+	case 17:
+		return "mmm-yy"
+	case 18:
+		return "h:mm AM/PM"
+	case 19:
+		return "h:mm:ss AM/PM"
+	case 20:
+		return "h:mm"
+	case 21:
+		return "h:mm:ss"
+	case 22:
+		return "m/d/yy h:mm"
+	case 37:
+		return "#,##0 ;(#,##0)"
+	case 39:
+		return "#,##0.00;(#,##0.00)"
+	case 40:
+		return "#,##0.00;[Red](#,##0.00)"
+	case 41:
+		return `_(* #,##0_);_(* \(#,##0\);_(* "-"_);_(@_)`
+	case 42:
+		return `_("$"* #,##0_);_("$* \(#,##0\);_("$"* "-"_);_(@_)`
+	case 43:
+		return `_(* #,##0.00_);_(* \(#,##0.00\);_(* "-"??_);_(@_)`
+	case 44:
+		return `_("$"* #,##0.00_);_("$"* \(#,##0.00\);_("$"* "-"??_);_(@_)`
+	case 45:
+		return "mm:ss"
+	case 46:
+		return "[h]:mm:ss"
+	case 47:
+		return "mmss.0"
+	case 48:
+		return "##0.0E+0"
+	case 49:
+		return "@"
+	}
+	return ""
+}
+
 func (styles *xlsxStyleSheet) getNumberFormat(styleIndex int) string {
-	if styles.CellXfs.Xf == nil {
+	if styles.CellXfs.Xf == nil || styles.numFmtRefTable == nil {
 		return ""
 	}
 	var numberFormat string = ""
 	if styleIndex > -1 && styleIndex <= styles.CellXfs.Count {
 		xf := styles.CellXfs.Xf[styleIndex]
-		numFmt := NumFmtRefTable[xf.NumFmtId]
-		numberFormat = numFmt.FormatCode
+		if xf.NumFmtId < 164 {
+			return getBuiltinNumberFormat(xf.NumFmtId)
+		} else {
+			numFmt := styles.numFmtRefTable[xf.NumFmtId]
+			numberFormat = numFmt.FormatCode
+		}
 	}
 	return strings.ToLower(numberFormat)
 }
@@ -204,13 +266,13 @@ func (styles *xlsxStyleSheet) addCellXf(xCellXf xlsxXf) (index int) {
 }
 
 func (styles *xlsxStyleSheet) addNumFmt(xNumFmt xlsxNumFmt) (index int) {
-	numFmt, ok := NumFmtRefTable[xNumFmt.NumFmtId]
+	numFmt, ok := styles.numFmtRefTable[xNumFmt.NumFmtId]
 	if !ok {
-		if NumFmtRefTable == nil {
-			NumFmtRefTable = make(map[int]xlsxNumFmt)
+		if styles.numFmtRefTable == nil {
+			styles.numFmtRefTable = make(map[int]xlsxNumFmt)
 		}
 		styles.NumFmts.NumFmt = append(styles.NumFmts.NumFmt, xNumFmt)
-		NumFmtRefTable[xNumFmt.NumFmtId] = xNumFmt
+		styles.numFmtRefTable[xNumFmt.NumFmtId] = xNumFmt
 		index = styles.NumFmts.Count
 		styles.NumFmts.Count += 1
 		return
@@ -232,7 +294,7 @@ func (styles *xlsxStyleSheet) Marshal() (result string, err error) {
 	var outputBorderMap map[int]int = make(map[int]int)
 
 	result = xml.Header
-	result += `<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">`
+	result += `<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:x14ac="http://schemas.microsoft.com/office/spreadsheetml/2009/9/ac" mc:Ignorable="x14ac">`
 
 	xNumFmts, err = styles.NumFmts.Marshal()
 	if err != nil {
@@ -304,8 +366,8 @@ func (numFmts *xlsxNumFmts) Marshal() (result string, err error) {
 // currently I have not checked it for completeness - it does as much
 // as I need.
 type xlsxNumFmt struct {
-	NumFmtId   int    `xml:"numFmtId,omitempty"`
-	FormatCode string `xml:"formatCode,omitempty"`
+	NumFmtId   int    `xml:"numFmtId,attr,omitempty"`
+	FormatCode string `xml:"formatCode,attr,omitempty"`
 }
 
 func (numFmt *xlsxNumFmt) Marshal() (result string, err error) {
@@ -340,7 +402,7 @@ func (fonts *xlsxFonts) Marshal(outputFontMap map[int]int) (result string, err e
 		}
 	}
 	if emittedCount > 0 {
-		result = fmt.Sprintf(`<fonts count="%d">`, fonts.Count)
+		result = fmt.Sprintf(`<fonts count="%d" x14ac:knownFonts="1">`, fonts.Count)
 		result += subparts
 		result += `</fonts>`
 	}
@@ -420,11 +482,11 @@ func (fills *xlsxFills) Marshal(outputFillMap map[int]int) (result string, err e
 			subparts += xfill
 		}
 	}
-	if emittedCount > 0 {
-		result = fmt.Sprintf(`<fills count="%d">`, emittedCount)
+	//if emittedCount > 0 {
+		result = fmt.Sprintf(`<fills count="%d">`, (emittedCount + 2))
 		result += subparts
-		result += `</fills>`
-	}
+		result += `<fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>`
+	//}
 	return
 }
 
@@ -528,11 +590,11 @@ func (borders *xlsxBorders) Marshal(outputBorderMap map[int]int) (result string,
 			subparts += xborder
 		}
 	}
-	if emittedCount > 0 {
-		result += fmt.Sprintf(`<borders count="%d">`, emittedCount)
+	//if emittedCount > 0 {
+		result += fmt.Sprintf(`<borders count="%d">`, emittedCount + 1)
 		result += subparts
-		result += `</borders>`
-	}
+		result += `<border><left/><right/><top/><bottom/><diagonal/></border></borders>`
+	//}
 	return
 }
 

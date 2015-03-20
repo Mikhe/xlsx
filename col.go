@@ -1,13 +1,11 @@
 package xlsx
 
 // Default column width in excel
-const ColWidth = 20
+const ColWidth = 40
 
 type Col struct {
-	Min       int
-	Max       int
-	Hidden    bool
-	Width     float64
-	Collapsed bool
-	//	Style     int
+	Min         int
+	Max         int
+	Width       float64
+	Cw 			int
 }

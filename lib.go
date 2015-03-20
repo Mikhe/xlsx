@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 )
-
 // XLSXReaderError is the standard error type for otherwise undefined
 // errors in the XSLX reading process.
 type XLSXReaderError struct {
@@ -378,11 +377,6 @@ func readRowsFromSheet(Worksheet *xlsxWorksheet, file *File) ([]*Row, []*Col, in
 	rows = make([]*Row, rowCount)
 	cols = make([]*Col, colCount)
 	insertRowIndex = minRow
-	for i := range cols {
-		cols[i] = &Col{
-			Hidden: false,
-		}
-	}
 
 	// Columns can apply to a range, for convenience we expand the
 	// ranges out into individual column definitions.
@@ -395,8 +389,8 @@ func readRowsFromSheet(Worksheet *xlsxWorksheet, file *File) ([]*Row, []*Col, in
 			cols[i-1] = &Col{
 				Min:    rawcol.Min,
 				Max:    rawcol.Max,
-				Hidden: rawcol.Hidden,
-				Width:  rawcol.Width}
+				Width:  rawcol.Width,
+				Cw: 	rawcol.Cw}
 		}
 	}
 
